@@ -1,0 +1,109 @@
+<!DOCTYPE html>  
+<html lang="en">  
+<head>  
+    <meta charset="UTF-8">  
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">  
+    <title>USDC Payment</title>  
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.5.4/dist/ethers.5.5.4.min.js"></script>  
+    <script src="https://unpkg.com/@walletconnect/web3-provider/dist/umd/index.min.js"></script>  
+    <style>  
+        body { font-family: Arial, sans-serif; }  
+        .container { max-width: 400px; margin: 0 auto; padding: 20px; }  
+        .button { padding: 10px 15px; margin: 5px; }  
+    </style>  
+</head>  
+<body>  
+    <div class="container">  
+        <h1>USDC Payment</h1>  
+        <input type="text" id="price" placeholder="Enter amount in USDC" />  
+        <div>  
+            <button id="payMetaMask" class="button">Pay with MetaMask</button>  
+            <button id="walletConnectButton" class="button">Pay with WalletConnect</button>  
+        </div>  
+    </div>  
+
+    <script>  
+        const USDC_ADDRESS = "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359"; // USDC token address  
+        const RECEIVER_ADDRESS = "0x2Ee934331C771F0f5901314226375F469e7CeceC"; // Your receiver address  
+
+        async function payWithMetaMask() {  
+            if (!window.ethereum) {  
+                alert("MetaMask is not installed. Please install MetaMask to proceed.");  
+                return;  
+            }  
+
+            try {  
+                const accounts = await ethereum.request({ method: "eth_requestAccounts" });  
+                const price = document.getElementById("price").value;  
+                const amountInUSDC = ethers.utils.parseUnits(price, 6);  
+                const provider = new ethers.providers.Web3Provider(window.ethereum);  
+                const signer = provider.getSigner();  
+
+                const usdcContract = new ethers.Contract(  
+                    USDC_ADDRESS,  
+                    ["function transfer(address to, uint256 amount) public returns (bool)"],  
+                    signer  
+                );  
+
+                // Send USDC payment  
+                const tx = await usdcContract.transfer(RECEIVER_ADDRESS, amountInUSDC);  
+                alert(`Transaction submitted. Hash: ${tx.hash}`);  
+
+                // Wait for the transaction to be mined  
+                await tx.wait();  
+                alert(`Transaction confirmed in block: ${tx.blockNumber}`);  
+            } catch (error) {  
+                console.error("MetaMask payment failed:", error);  
+                alert(`MetaMask payment failed: ${error.message}`);  
+            }  
+        }  
+
+        async function payWithWalletConnect() {  
+            const walletConnectProvider = new WalletConnectProvider.default({  
+                rpc: {  
+                    137: "https://polygon-rpc.com", // Polygon mainnet RPC  
+                },  
+                chainId: 137,  
+                qrcodeModalOptions: {  
+                    mobileLinks: ["metamask", "trust"],  
+                },  
+            });  
+
+            try {  
+                // Enable WalletConnect  
+                await walletConnectProvider.enable();  
+
+                const ethersProvider = new ethers.providers.Web3Provider(walletConnectProvider);  
+                const signer = ethersProvider.getSigner();  
+
+                const price = document.getElementById("price").value;  
+                const amountInUSDC = ethers.utils.parseUnits(price, 6);  
+
+                const usdcContract = new ethers.Contract(  
+                    USDC_ADDRESS,  
+                    ["function transfer(address to, uint256 amount) public returns (bool)"],  
+                    signer  
+                );  
+
+                // Send USDC payment  
+                const tx = await usdcContract.transfer(RECEIVER_ADDRESS, amountInUSDC);  
+                alert(`Transaction submitted. Hash: ${tx.hash}`);  
+
+                // Wait for the transaction to be mined  
+                await tx.wait();  
+                alert(`Transaction confirmed in block: ${tx.blockNumber}`);  
+            } catch (error) {  
+                console.error("WalletConnect transaction failed:", error);  
+                alert(`WalletConnect transaction failed: ${error.message}`);  
+            } finally {  
+                if (walletConnectProvider.connected) {  
+                    await walletConnectProvider.disconnect(); // Disconnect after transaction  
+                }  
+            }  
+        }  
+
+        document.getElementById("payMetaMask").addEventListener("click", payWithMetaMask);  
+        document.getElementById("walletConnectButton").addEventListener("click", payWithWalletConnect);  
+    </script>  
+</body>  
+</html>
